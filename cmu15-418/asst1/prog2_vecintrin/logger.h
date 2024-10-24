@@ -10,24 +10,27 @@ using namespace std;
 
 struct __cmu418_mask;
 
-struct Log {
-  char instruction[MAX_INST_LEN];
-  unsigned long long mask; // support vector width up to 64
+struct Log
+{
+    char instruction[MAX_INST_LEN];
+    unsigned long long mask; // support vector width up to 64
 };
 
-struct Statistics {
-  unsigned long long utilized_lane;
-  unsigned long long total_lane;
-  unsigned long long total_instructions;
+struct Statistics
+{
+    unsigned long long utilized_lane;
+    unsigned long long total_lane;
+    unsigned long long total_instructions;
 };
 
-class Logger {
-  private:
+class Logger
+{
+private:
     vector<Log> log;
     Statistics stats;
 
-  public:
-    void addLog(const char * instruction, __cmu418_mask mask, int N = 0);
+public:
+    void addLog(const char *instruction, __cmu418_mask mask, int N = 0);
     void printStats();
     void printLog();
 };
