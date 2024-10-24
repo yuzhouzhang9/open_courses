@@ -297,8 +297,8 @@ void clampedExpVector(float *values, int *exponents, float *output, int N)
 	for (int i = 0; i < N; i += VECTOR_WIDTH)
 	{
 		// load data
-		_cmu418_vload_float(valuesVec,values+i,mask_one);
-		_cmu418_vload_int(exponentsVec,exponents+i,mask_one);
+		_cmu418_vload_float(valuesVec, values + i, mask_one);
+		_cmu418_vload_int(exponentsVec, exponents + i, mask_one);
 		resultVec = _cmu418_vset_float(1.f);
 		_cmu418_vgt_int(mask, exponentsVec, exp_zero, mask_one);
 		for (int i = 0; i < 8; i++)
@@ -330,10 +330,10 @@ void clampedExpVector(float *values, int *exponents, float *output, int N)
 			// }
 			// std::cout << endl;
 		}
-		
-		// if result > 4.18 
+
+		// if result > 4.18
 		_cmu418_vgt_float(mask_zero, resultVec, compair_value, mask_one);
-		
+
 		// result = 4.18
 		_cmu418_vset_float(resultVec, 4.18f, mask_zero);
 
@@ -359,5 +359,23 @@ float arraySumVector(float *values, int N)
 {
 	// Implement your vectorized version here
 	//  ...
-	return 0.f;
+	__cmu418_vec_float vecSum = _cmu418_vset_float(0.f);
+	__cmu418_vec_float vecTemp;
+	__cmu418_mask mask = _cmu418_init_ones();
+	for (int i = 0; i < N; i += VECTOR_WIDTH)
+	{
+		_cmu418_vload_float(vecTemp, values + i, mask);
+		_cmu418_hadd_float(vecSum, vecTemp);
+		// for (int i = 0; i < VECTOR_WIDTH; i++)
+		// {
+		// 	std::cout << vecSum.value[i] << " ";
+		// }
+	}
+	float sum;
+	for (int i = 0; i < VECTOR_WIDTH; i++)
+	{
+		sum += vecSum.value[i];
+		// std::cout << vecSum.value[i] << " ";
+	}
+	return sum;
 }
