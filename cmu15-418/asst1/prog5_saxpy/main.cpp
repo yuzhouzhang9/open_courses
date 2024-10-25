@@ -23,15 +23,18 @@ using namespace ispc;
 
 int main() {
     const unsigned int N = 20 * 1000 * 1000; // 20 M element vectors (~80 MB)
-    const unsigned int TOTAL_BYTES = 4 * N * sizeof(float);
+    const unsigned int TOTAL_BYTES = 3 * N * sizeof(float);
     const unsigned int TOTAL_FLOPS = N;
 
     float scale = 2.f;
 
-    float* arrayX = new float[N];
-    float* arrayY = new float[N];
-    float* result = new float[N];
-
+    // float* arrayX = new float[N];
+    // float* arrayY = new float[N];
+    // float* result = new float[N];
+    // 32字节对齐
+    float* arrayX = (float*)aligned_alloc(64, N * sizeof(float));
+    float* arrayY = (float*)aligned_alloc(64, N * sizeof(float));
+    float* result = (float*)aligned_alloc(64, N * sizeof(float));
     // initialize array values
     for (unsigned int i=0; i<N; i++)
     {
@@ -113,12 +116,14 @@ int main() {
         double endTime = CycleTimer::currentSeconds();
         minTaskISPC = std::min(minTaskISPC, endTime - startTime);
     }
-
+    
     printf("[saxpy task ispc]:\t[%.3f] ms\t[%.3f] GB/s\t[%.3f] GFLOPS\n",
            minTaskISPC * 1000,
            toBW(TOTAL_BYTES, minTaskISPC),
            toGFLOPS(TOTAL_FLOPS, minTaskISPC));
-
+    free(arrayX);
+    free(arrayY);
+    free(result);
     printf("\t\t\t\t(%.2fx speedup from streaming)\n", minSerial/minStreaming);
     printf("\t\t\t\t(%.2fx speedup from ISPC)\n", minSerial/minISPC);
     printf("\t\t\t\t(%.2fx speedup from task ISPC)\n", minSerial/minTaskISPC);

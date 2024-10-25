@@ -1,8 +1,7 @@
-CXX=g++ -m64
-CXXFLAGS=-I../common -Iobjs/ -O3 -Wall -msse4.1 -DNDEBUG
-ISPC=ispc
-# note: change target to avx-x2 for AVX capable machines
-ISPCFLAGS=-O3 --target=avx2-i32x8 --arch=x86-64
+CXX = g++
+CXXFLAGS = -I../common -Iobjs/ -O3 -march=native -mavx512f -Wall -DNDEBUG
+ISPC = ispc
+ISPCFLAGS = -O3 --target=avx512skx-i32x16 --arch=x86-64
 
 APP_NAME=saxpy
 OBJDIR=objs
