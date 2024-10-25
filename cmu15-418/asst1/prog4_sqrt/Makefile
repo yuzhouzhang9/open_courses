@@ -3,6 +3,7 @@ CXXFLAGS=-I../common -Iobjs/ -O3 -Wall
 ISPC=ispc
 # note: change target to avx for AVX capable machines
 ISPCFLAGS=-O2 --target=avx2-i32x8 --arch=x86-64
+# ISPCFLAGS=-O2 --target=avx512knl --arch=x86-64
 
 APP_NAME=sqrt
 OBJDIR=objs
