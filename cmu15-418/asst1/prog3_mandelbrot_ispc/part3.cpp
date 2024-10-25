@@ -63,7 +63,6 @@ using namespace ispc;
 void usage(const char* progname) {
     printf("Usage: %s [options]\n", progname);
     printf("Program Options:\n");
-    printf("  -t  --tasks        Run ISPC code implementation with tasks\n");
     printf("  -v  --view <INT>   Use specified view settings  (1-6)\n");
     printf("  -?  --help         This message\n");
 }
@@ -72,9 +71,10 @@ void usage(const char* progname) {
 #define VIEWCNT 6
 
 int main(int argc, char** argv) {
-
-    const unsigned int width = 135*32;
-    const unsigned int height = 75*32;
+    const unsigned int width = 135*100;
+    const unsigned int height = 75*100;
+    // const unsigned int width = 135*32;
+    // const unsigned int height = 10000;
     const int maxIterations = 256;
 
     float x0 = -2.167;
@@ -82,7 +82,6 @@ int main(int argc, char** argv) {
     float y0 = -1;
     float y1 = 1;
 
-    bool useTasks = false;
 
     // Support VIEWCNT views
     float scaleValues[VIEWCNT+1] = { 1.0f, 1.0f, 0.015f, 0.02f, 0.02f, 0.02f,  0.002f };
@@ -93,18 +92,13 @@ int main(int argc, char** argv) {
     // parse commandline options ////////////////////////////////////////////
     int opt;
     static struct option long_options[] = {
-        {"tasks", 0, 0, 't'},
         {"view",  1, 0, 'v'},
         {"help",  0, 0, '?'},
         {0 ,0, 0, 0}
     };
 
     while ((opt = getopt_long(argc, argv, "tv:?", long_options, NULL)) != EOF) {
-
         switch (opt) {
-        case 't':
-            useTasks = true;
-            break;
         case 'v':
         {
             int viewIndex = atoi(optarg);
@@ -127,91 +121,48 @@ int main(int argc, char** argv) {
     }
     // end parsing of commandline options
 
-    int *output_serial = new int[width*height];
-    int *output_ispc = new int[width*height];
+    int *output_multithread = new int[width*height];
     int *output_ispc_tasks = new int[width*height];
 
     // init
     for (unsigned int i = 0; i < width * height; ++i)
-        output_serial[i] = 0;
+        output_multithread[i] = 0;
 
     //
-    // Run the serial implementation. Teport the minimum time of three
+    // Run the multithread implementation. Teport the minimum time of three
     // runs for robust timing.
     //
-    double minSerial = 1e30;
+    double minMultiThread= 1e30;
     for (int i = 0; i < 3; ++i) {
         double startTime = CycleTimer::currentSeconds();
-        mandelbrotSerial(x0, y0, x1, y1, width, height, 0, height, maxIterations, output_serial);
+        mandelbrotThread(height,
+        x0, y0, x1, y1, 
+        width, height,
+        maxIterations, output_multithread);
         double endTime = CycleTimer::currentSeconds();
-        minSerial = std::min(minSerial, endTime - startTime);
+        minMultiThread = std::min(minMultiThread, endTime - startTime);
     }
 
-    printf("[mandelbrot serial]:\t\t[%.3f] ms\n", minSerial * 1000);
-    writePPMImage(output_serial, width, height, "mandelbrot-serial.ppm", maxIterations);
-
-    // Clear out the buffer
-    for (unsigned int i = 0; i < width * height; ++i)
-        output_ispc[i] = 0;
-
-    //
-    // Compute the image using the ispc implementation
-    //
-    double minISPC = 1e30;
-    for (int i = 0; i < 3; ++i) {
-        double startTime = CycleTimer::currentSeconds();
-        mandelbrot_ispc(x0, y0, x1, y1, width, height, maxIterations, output_ispc);
-        double endTime = CycleTimer::currentSeconds();
-        minISPC = std::min(minISPC, endTime - startTime);
-    }
-
-    printf("[mandelbrot ispc]:\t\t[%.3f] ms\n", minISPC * 1000);
-    writePPMImage(output_ispc, width, height, "mandelbrot-ispc.ppm", maxIterations);
-
-
-    if (! verifyResult (output_serial, output_ispc, width, height)) {
-        printf ("Error : ISPC output differs from sequential output\n");
-
-        delete[] output_serial;
-        delete[] output_ispc;
-        delete[] output_ispc_tasks;
-
-        return 1;
-    }
-
-    // Clear out the buffer
-    for (unsigned int i = 0; i < width * height; ++i) {
-        output_ispc_tasks[i] = 0;
-    }
+    printf("[mandelbrot multithread]:\t\t[%.3f] ms\n", minMultiThread * 1000);
+    writePPMImage(output_multithread, width, height, "mandelbrot-multithread.ppm", maxIterations);
 
     double minTaskISPC = 1e30;
-    if (useTasks) {
-        //
-        // Tasking version of the ISPC code
-        //
-        for (int i = 0; i < 3; ++i) {
-            double startTime = CycleTimer::currentSeconds();
-            mandelbrot_ispc_withtasks(x0, y0, x1, y1, width, height, maxIterations, output_ispc_tasks,32);
-            double endTime = CycleTimer::currentSeconds();
-            minTaskISPC = std::min(minTaskISPC, endTime - startTime);
-        }
-
-        printf("[mandelbrot multicore ispc]:\t[%.3f] ms\n", minTaskISPC * 1000);
-        writePPMImage(output_ispc_tasks, width, height, "mandelbrot-task-ispc.ppm", maxIterations);
-
-        if (! verifyResult (output_serial, output_ispc_tasks, width, height)) {
-            printf ("Error : ISPC output differs from sequential output\n");
-            return 1;
-        }
+    for (int i = 0; i < 3; ++i) {
+        double startTime = CycleTimer::currentSeconds();
+        mandelbrot_ispc_withtasks(x0, y0, x1, y1, 
+        width, height, 
+        maxIterations, output_ispc_tasks,
+        height);
+        double endTime = CycleTimer::currentSeconds();
+        minTaskISPC = std::min(minTaskISPC, endTime - startTime);
     }
 
-    printf("\t\t\t\t(%.2fx speedup from ISPC)\n", minSerial/minISPC);
-    if (useTasks) {
-        printf("\t\t\t\t(%.2fx speedup from task ISPC)\n", minSerial/minTaskISPC);
-    }
+    printf("[mandelbrot multicore ispc]:\t[%.3f] ms\n", minTaskISPC * 1000);
+    writePPMImage(output_ispc_tasks, width, height, "mandelbrot-task-ispc.ppm", maxIterations);
 
-    delete[] output_serial;
-    delete[] output_ispc;
+    printf("\t\t\t\t(%.2fx speedup from task output_multithread)\n", minMultiThread/minTaskISPC);
+
+    delete[] output_multithread;
     delete[] output_ispc_tasks;
 
 
